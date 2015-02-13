@@ -1,0 +1,188 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Screen.jack
+
+/**
+ * Graphic screen library.
+ */
+class Screen {
+    static boolean color;
+    static int powers_of_two;
+
+    /** Initializes the Screen. */
+    function void init() {
+        let color = true;
+        let powers_of_two = Array.new(16);
+        let powers_of_two[0] = 1;
+        let powers_of_two[1] = 2;
+        let powers_of_two[2] = 4;
+        let powers_of_two[3] = 8;
+        let powers_of_two[4] = 16;
+        let powers_of_two[5] = 32;
+        let powers_of_two[6] = 64;
+        let powers_of_two[7] = 128;
+        let powers_of_two[8] = 256;
+        let powers_of_two[9] = 512;
+        let powers_of_two[10] = 1024;
+        let powers_of_two[11] = 2048;
+        let powers_of_two[12] = 4096;
+        let powers_of_two[13] = 8192;
+        let powers_of_two[14] = 16384;
+        let powers_of_two[15] = 16384+16384;
+        return;
+    }
+
+    /** Erases the whole screen. */
+    function void clearScreen() {
+        var int i;
+        let i = 16384;
+        while(i<24576){
+            do Memory.poke(i,0);
+            let i = i+1;
+        }
+        return;
+    }
+
+    /** Sets the color to be used in further draw commands
+     *  where white = false, black = true. */
+    function void setColor(boolean b) {
+        let color = b;
+        return;
+    }
+
+    /** Draws the (x, y) pixel. */
+    function void drawPixel(int x, int y) {
+        var int address, mod, word, pixNum;
+        if((x<0)|(x>511)|(y<0)|(y>255)){
+            do Sys.error(7);
+        }
+        let address = 16384 + (y*32) + (x/16);
+        let word = Memory.peek(address);
+        let pixNum = y*512 + x;
+        let mod = pixNum-(pixNum / 16 * 16);
+        if(mod < 0){
+            let mod = mod + 16;
+        }
+        if(color){
+            do Memory.poke(address, word | powers_of_two[mod]);
+        }else{
+            do Memory.poke(address, word & (~powers_of_two[mod]));
+        }
+        return;
+    }
+
+    /** Draws a line from (x1, y1) to (x2, y2). */
+    function void drawLine(int x1, int y1, int x2, int y2) {
+        var int a, b, dx, dy, adyMinusbdx;
+        if ((x1 < 0) | (x1 > 511) | (y1 < 0) | (y1 > 255) | (x2 < 0) | (x2 > 511) | (y2 < 0) | (y2 > 255)) {
+            do Sys.error(8);
+        }
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        if ((dx < 0) & (dy < 0)) {
+            do Screen.drawLine(x2, y2, x1, y1);
+        } else { 
+        if (dy = 0) {
+          
+            let a = Math.min(x1, x2);
+            let b = Math.max(x1, x2);
+            let x1 = a;
+            let x2 = b;
+            let dx = Math.abs(dx);
+            let a = 0;
+            while (a < (dx + 1)) {
+               do Screen.drawPixel(x1 + a, y1);
+            let a = a + 1;
+            }
+        } else {
+          if (dx = 0) {
+            let a = Math.min(y1, y2);
+            let b = Math.max(y1, y2);
+            let y1 = a;
+            let y2 = b;
+            let dy = Math.abs(dy);
+            let b = 0;
+            while (b < (dy + 1)) {
+              do Screen.drawPixel(x1, y1 + b);
+              let b = b + 1;
+            }
+          } else {
+            if (dx < 0) {
+              let dx = -dx;
+              while ((a < (dx + 1)) & (b < (dy + 1))) {
+                do Screen.drawPixel(x1 - a, y1 + b);
+                if (adyMinusbdx < 0) {
+                  let a = a + 1;
+                  let adyMinusbdx = adyMinusbdx + dy;
+                } else {
+                  let b = b + 1;
+                  let adyMinusbdx = adyMinusbdx - dx;
+                }
+              }
+            } else {
+              if (dy < 0) {
+                let dy = -dy;
+                while ((a < (dx + 1)) & (b < (dy + 1))) {
+                  do Screen.drawPixel(x1 + a, y1 - b);
+                  if (adyMinusbdx < 0) {
+                    let a = a + 1;
+                    let adyMinusbdx = adyMinusbdx + dy;
+                  } else {
+                    let b = b + 1;
+                    let adyMinusbdx = adyMinusbdx - dx;
+                  }
+                }
+              } else {
+                while ((a < (dx + 1)) & (b < (dy + 1))) {
+                  do Screen.drawPixel(x1 + a, y1 + b);
+                  if (adyMinusbdx < 0) {
+                    let a = a + 1;
+                    let adyMinusbdx = adyMinusbdx + dy;
+                  } else {
+                    let b = b + 1;
+                    let adyMinusbdx = adyMinusbdx - dx;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      return;
+    }
+
+    /** Draws a filled rectangle where the top left corner
+     *  is (x1, y1) and the bottom right corner is (x2, y2). */
+    function void drawRectangle(int x1, int y1, int x2, int y2) {
+      var int y;
+      if ((x1 < 0) | (x1 > 511) | (y1 < 0) | (y1 > 255) | (x2 < 0) | (x2 > 511) | (y2 < 0) | (y2 > 255)) {
+        do Sys.error(9);
+      }
+      let y = y1;
+      while (y < (y2 + 1)) {
+        do Screen.drawLine(x1, y, x2, y);
+        let y = y + 1;
+      }
+      return;
+    }
+
+    /** Draws a filled circle of radius r around (cx, cy). */
+    function void drawCircle(int cx, int cy, int r) {
+        var int dy, dist_r_dy;
+        if ((cx - r < 0) | (cx + r > 511) | (cy - r < 0) | (cy + r > 255)) {
+            do Sys.error(12);
+        }
+        if (r > 181) {
+            do Sys.error(13);
+        }
+        let dy = -r;
+        while (dy < (r + 1)) {
+           let dist_r_dy = Math.sqrt((r*r) - (dy * dy));
+           do Screen.drawLine(cx - dist_r_dy, cy + dy, cx + dist_r_dy, cy + dy);
+           let dy = dy + 1;
+        }
+        return;
+
+    }
+}

@@ -1,0 +1,162 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Memory.jack
+
+/**
+ * Memory operations library.
+ */ 
+class Memory {
+    static Array memory;
+    static Array freelist;
+    static Array noblock;
+
+    static int length; 
+    static int next;  
+
+    static int alloc_size;
+
+    /** Initializes memory parameters. */
+    function void init() {
+        let memory = 0;
+        let freelist = 2048;
+        let noblock = 16384;   
+        let length = 0;
+        let next = 1;
+        let alloc_size = -1;
+        let freelist[length] = 16384-2048;
+        let freelist[next] = null;
+        return;
+    }
+
+    /** Returns the value of the main memory at the given address. */
+    function int peek(int address) {
+        return memory[address];
+    }
+
+    /** Sets the value of the main memory at this address
+     *  to the given value. */
+    function void poke(int address, int value) {
+        let memory[address] = value;
+        return;
+    }
+
+    /** finds and allocates from the heap a memory block of the 
+     *  specified size and returns a reference to its base address. */
+    function int alloc(int size) {
+        var Array prev_block;
+        var Array found_block;
+        
+        let prev_block = Memory.best_fit(size);
+        if( prev_block = noblock ) {
+            let found_block = null; 
+        }
+        else {
+            if( prev_block = null ) {
+                let found_block = freelist;                
+                let freelist = Memory.do_alloc(found_block, size); 
+            }
+            else {
+                let found_block = prev_block[next];
+                let prev_block[next] = Memory.do_alloc(found_block, size);
+            }
+        }
+        return found_block+1;
+    }
+
+    function Array do_alloc(Array found_block, int size) {
+        var Array next_block;
+        var int block_size;
+        
+        if( found_block[length] > (size+3) ) { 
+            let next_block = found_block + size+1;  
+            let next_block[next] = found_block[next];
+            let next_block[length] = found_block[length] - (next_block - found_block);
+            let found_block = found_block + 1;      
+            let found_block[alloc_size] = size+1; 
+        }
+        else {      
+            let next_block = found_block[next];
+            let block_size = found_block[length];
+            let found_block = found_block + 1;      
+            let found_block[alloc_size] = block_size;
+        }
+        
+        return next_block;
+    }
+
+    function Array best_fit(int size) {
+        var Array best_block;
+        var Array prev_block;
+        var Array cur_block;
+        var int best_size;
+        var int cur_size;
+        
+        let best_block = noblock;
+        let best_size = 16384 - 2048;
+        let cur_block = freelist;
+        let prev_block = null;
+        
+        while( ~(cur_block = null) ) {
+            let cur_size = cur_block[length]-1;  
+            if( ~(cur_size < size) & (cur_size < best_size) ) {
+                let best_block = prev_block;    
+                let best_size = cur_size;
+            }
+            let prev_block = cur_block;
+            let cur_block = cur_block[next];
+        }
+        
+        return best_block;  
+    }
+
+    /** De-allocates the given object and frees its space. */
+    function void deAlloc(int object) {
+        var int alloc_size;
+        var Array prev_block;
+        var Array next_block;
+        
+        let alloc_size = object[alloc_size];
+        let object = object - 1;        
+        let prev_block = Memory.find_prev_free(object);
+        
+        if( prev_block = null ) {       
+            let object[length] = alloc_size;
+            let object[next] = freelist;
+            let freelist = object;
+            let prev_block = object;
+        }
+        else {
+            if( (prev_block + prev_block[length]) = object ) {
+                let prev_block[length] = prev_block[length] + alloc_size;
+            }
+            else {
+                let object[length] = alloc_size;
+                let object[next] = prev_block[next];
+                let prev_block[next] = object;
+                let prev_block = object;
+            }
+        }
+        
+        if( (prev_block + prev_block[length]) = prev_block[next] ) {
+            let next_block = prev_block[next];
+            let prev_block[length] = prev_block[length] + next_block[length];
+            let prev_block[next] = next_block[next];
+        }
+        return;
+    }  
+
+    function Array find_prev_free(Array object){
+        var Array block;
+        
+        if( freelist > object ) {
+            return null;
+        }
+        
+        let block = freelist;
+        while( ~(block[next] = null) & (block[next] < object) ) {
+            let block = block[next];
+        }
+        return block;
+    }
+}
